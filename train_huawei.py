@@ -107,7 +107,7 @@ def main(args):
         transforms.Normalize(mean=0, std=1)
     ])
 
-    model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+    model=M3(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
     loss_fn=MSSSIM()
     optimizer=optim.Adam(filter(lambda p:p.requires_grad,model.parameters()),lr=args.lr)
 
@@ -165,7 +165,7 @@ if __name__=='__main__':
     parse.add_argument('--width', type=int, default=512)
     parse.add_argument('--lr',default=1e-3,type=float)
     parse.add_argument('--load',default=0)
-    parse.add_argument('--train',default=0)
+    parse.add_argument('--train',default=True)
     parse.add_argument('--save',default='save_predictions_as_imgs8')
     parse.add_argument('--savepath',default='save_imgs')
     parse.add_argument('--checkpoint',default='save.pth.tar')
