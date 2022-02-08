@@ -142,7 +142,7 @@ def main(args):
             if aaa==1:
             # save_checkpoint(check_point, filename='check3.pth.tar')
                 save_checkpoint(check_point, filename=os.path.join(args.savepath,args.checkpoint))
-                save_predictions_as_imgs7(val_loader,model,args.savepath)
+                # save_predictions_as_imgs7(val_loader,model,args.savepath)
                 # save_predictions_as_imgs7(val_loader, model, args.savepath)
     print('max',max_dice)
 
