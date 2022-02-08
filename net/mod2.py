@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import Module
 from torch.nn.modules.conv import _ConvNd
 from torch.nn.modules.utils import _pair
-from init_weights import init_weights
+from net.init_weights import init_weights
 from torchsummary import summary
 from torch.nn import functional as F
 
@@ -902,11 +902,16 @@ class M3(Module):
         self.up_8 = nn.Upsample(scale_factor=8, mode='bilinear')
         self.up_16 = nn.Upsample(scale_factor=16, mode='bilinear')
         self.aspp = ASPP(filters[4], cat_channel)
-        # for m in self.modules():
-        #     if isinstance(m, nn.Conv2d):
-        #         init_weights(m, init_type='kaiming')
-        #     elif isinstance(m, nn.BatchNorm2d):
-        #         init_weights(m, init_type='kaiming')
+        # self.hd5_conv=nn.Sequential(
+        #     nn.Conv2d(cat_channel*5,cat_channel,3,1,1),
+        #     nn.BatchNorm2d(cat_channel),
+        #     nn.ReLU(True)
+        # )
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                init_weights(m, init_type='kaiming')
+            elif isinstance(m, nn.BatchNorm2d):
+                init_weights(m, init_type='kaiming')
 
     def forward(self,x,train=False):
         x1=self.down_conv1(x)
@@ -980,6 +985,7 @@ class M3(Module):
         a1_3=self.conv1_d3(hd1)
         a1_2=self.conv1_d2(hd1)
         # print(hd5.size())
+        # hd5_=self.hd5_conv(hd5)
         a1_5=self.convd5(a1_5)
         a1_4=self.convd4(torch.cat((a1_4,self.up_8(gate4)),dim=1))
         a1_3=self.convd3(torch.cat((a1_3,self.up_4(gate3)),dim=1))
