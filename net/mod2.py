@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import Module
 from torch.nn.modules.conv import _ConvNd
 from torch.nn.modules.utils import _pair
-from net.init_weights import init_weights
+from init_weights import init_weights
 from torchsummary import summary
 from torch.nn import functional as F
 
@@ -643,6 +643,7 @@ class M2(Module):
         self.up_4 = nn.Upsample(scale_factor=4, mode='bilinear')
         self.up_8 = nn.Upsample(scale_factor=8, mode='bilinear')
         self.up_16 = nn.Upsample(scale_factor=16, mode='bilinear')
+        self.aspp = ASPP(filters[4], cat_channel)
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 init_weights(m, init_type='kaiming')
@@ -712,8 +713,8 @@ class M2(Module):
         # out=torch.cat((gate1,hd1),dim=1)
 
         edge2=self.gate_up2(gate2)
-        # edge3=self.gate_up3(gate3)
-        # edge4=self.gate_up4(gate4)
+        edge3=self.gate_up3(gate3)
+        edge4=self.gate_up4(gate4)
         #
         a1_5=self.conv1_d5(hd1)
         a1_4=self.conv1_d4(hd1)
@@ -730,7 +731,7 @@ class M2(Module):
 
 
         if train:
-            return out,edge2
+            return out,(edge2,edge3,edge4)
         return out
 
 
@@ -860,7 +861,7 @@ class M3(Module):
         self.convd2 = nn.Sequential(
             nn.Conv2d(cat_channel * 2, cat_channel, 3, 1, 1),
             nn.BatchNorm2d(cat_channel),
-            # nn.ReLU(True)
+            nn.ReLU(True)
         )
         self.conv1_d3 = nn.Sequential(
             # nn.Upsample(scale_factor=4,mode='bilinear'),
@@ -871,7 +872,7 @@ class M3(Module):
         self.convd3 = nn.Sequential(
             nn.Conv2d(cat_channel * 2, cat_channel, 3, 1, 1),
             nn.BatchNorm2d(cat_channel),
-            # nn.ReLU(True)
+            nn.ReLU(True)
         )
         self.conv1_d4 = nn.Sequential(
             # nn.Upsample(scale_factor=8,mode='bilinear'),
@@ -882,7 +883,7 @@ class M3(Module):
         self.convd4 = nn.Sequential(
             nn.Conv2d(cat_channel * 2, cat_channel, 3, 1, 1),
             nn.BatchNorm2d(cat_channel),
-            # nn.ReLU(True)
+            nn.ReLU(True)
         )
         self.conv1_d5 = nn.Sequential(
             # nn.Upsample(scale_factor=16,mode='bilinear'),
@@ -893,7 +894,7 @@ class M3(Module):
         self.convd5 = nn.Sequential(
             nn.Conv2d(cat_channel , cat_channel, 3, 1, 1),
             nn.BatchNorm2d(cat_channel),
-            # nn.ReLU(True)
+            nn.ReLU(True)
         )
         self.relu=nn.ReLU(True)
         self.up_2 = nn.Upsample(scale_factor=2, mode='bilinear')
@@ -970,10 +971,10 @@ class M3(Module):
         # out=torch.cat((gate1,hd1),dim=1)
 
         edge2=self.gate_up2(gate2)
-        edge3=self.gate_up3(gate3)
-        edge4=self.gate_up4(gate4)
+        # edge3=self.gate_up3(gate3)
+        # edge4=self.gate_up4(gate4)
 
-        a1_1=self.conv1_d1(hd1)
+        # a1_1=self.conv1_d1(hd1)
         a1_5=self.conv1_d5(hd1)
         a1_4=self.conv1_d4(hd1)
         a1_3=self.conv1_d3(hd1)
@@ -983,14 +984,14 @@ class M3(Module):
         a1_4=self.convd4(torch.cat((a1_4,self.up_8(gate4)),dim=1))
         a1_3=self.convd3(torch.cat((a1_3,self.up_4(gate3)),dim=1))
         a1_2=self.convd2(torch.cat((a1_2,self.up_2(gate2)),dim=1))
-        # a1=self.convd1(torch.cat((a1_2,a1_3,a1_4,a1_5,a1_1),dim=1))
-        a1=self.relu(a1_4+a1_3+a1_2+hd1+a1_5)
+        a1=self.convd1(torch.cat((a1_2,a1_3,a1_4,a1_5,hd1),dim=1))
+        # a1=self.relu(a1_4+a1_3+a1_2+a1_1+a1_5)
         # out=torch.cat((a1,d2_1),dim=1)
         out = self.out(a1)
 
 
         if train:
-            return out,(edge2,edge3,edge4)
+            return out,edge2
         return out
 
 
