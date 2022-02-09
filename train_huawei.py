@@ -9,7 +9,6 @@ import torch.optim as optim
 from torchvision import transforms
 from util.utils import *
 
-from net.gsunet import *
 from net.mod2 import *
 
 
@@ -48,7 +47,7 @@ if TRAIN==True:
     NUM_EPOCHS=1
 
 
-def train_fn(loader,model,optimizer,loss_fn=None):
+def train_fn(loader,model,optimizer,loss_fn=None,mutiedges=False):
     # loop=tqdm(loader)
     loss_ssim=SSIM_Loss()
     loss_bce=nn.BCELoss()
@@ -72,10 +71,12 @@ def train_fn(loader,model,optimizer,loss_fn=None):
 
         # loss_body = focal_loss(body, targets) + dice_loss(body, targets)
         loss_edge=0
-        # for k in range(len(edge_outs)-1):
-        #     loss_edge += 0.5 * (focal_loss(edge_outs[k], edge) +dice_loss(edge_outs[k],edge))
-        # loss_edge += 1.1 * (focal_loss(edge_outs[-1], edge) +dice_loss(edge_outs[-1],edge))
-        loss_edge += 1.1 * (focal_loss(edge_outs, edge) + dice_loss(edge_outs, edge))
+        if mutiedges:
+            for k in range(len(edge_outs)-1):
+                loss_edge += 0.5 * (focal_loss(edge_outs[k], edge) +dice_loss(edge_outs[k],edge))
+            loss_edge += 1.1 * (focal_loss(edge_outs[-1], edge) +dice_loss(edge_outs[-1],edge))
+        else:
+            loss_edge += 1.1 * (focal_loss(edge_outs, edge) + dice_loss(edge_outs, edge))
         loss=loss_out+loss_edge
         losses+=loss
 
@@ -106,8 +107,21 @@ def main(args):
         transforms.ToTensor(),
         transforms.Normalize(mean=0, std=1)
     ])
-
-    model=M3(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+    if args.mod=='M1':
+        model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+        mutiedges = True
+    elif args.mod=='M2':
+        model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+        mutiedges=True
+    elif args.mod=='M3':
+        model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+        mutiedges = False
+    elif args.mod=='M4':
+        model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+        mutiedges = True
+    elif args.mod=='M5':
+        model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+        mutiedges = True
     loss_fn=MSSSIM()
     optimizer=optim.Adam(filter(lambda p:p.requires_grad,model.parameters()),lr=args.lr)
 
@@ -129,7 +143,7 @@ def main(args):
     print(max_dice)
     for epoh in range(args.epohs):
         if args.train:
-            train_fn(train_loader,model,optimizer,loss_fn)
+            train_fn(train_loader,model,optimizer,loss_fn,mutiedges)
 
         # _=check_accury2(train_loader,model)
         dice=check_accury_noloop(val_loader,model)
@@ -155,6 +169,7 @@ if __name__=='__main__':
     # parse.add_argument('--VAL_MASK_DIR',default='data_Naso2/test/label')
     # parse.add_argument('--TRAIN_EDGE_DIR',default='data_Naso2/train/edge2')
 
+    parse.add_argument('--mod',default='M4')
     parse.add_argument('--TRAIN_IMG_DIR', default='dataset/train/image')
     parse.add_argument('--TRAIN_MASK_DIR', default='dataset/train/label')
     parse.add_argument('--VAL_IMG_DIR', default='dataset/test/image')
@@ -170,7 +185,7 @@ if __name__=='__main__':
     parse.add_argument('--savepath',default='save_imgs')
     parse.add_argument('--checkpoint',default='save.pth.tar')
     parse.add_argument('--epohs',default=10,type=int)
-    parse.add_argument('--res2',default=False,action='store_true')
+    # parse.add_argument('--mutiedges',default=False)
 
     parse.add_argument('--f1', default=4, type=int)
     parse.add_argument('--f2', default=6, type=int)

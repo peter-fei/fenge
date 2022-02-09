@@ -31,15 +31,20 @@ def get_loaders(train_dir,train_mask_dir,val_dir,val_mask_dir,train_edge_dir=Non
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=True, pin_memory=pin_nemory)
     return train_loader,val_loader
 
-def check_accury(loader,model,device='cuda',res=False,res2=False,softmax=False):
+def check_accury(loader,model,device='cuda',res=False,res2=False,softmax=False,hasedge=False):
     num_correct=0
     num_pixels=0
     dice_score=0
     model.eval()
     loop=tqdm(loader)
     count=0
+    c_black=0
     with torch.no_grad():
-        for x,y in loop:
+        for item in loop:
+            if hasedge:
+                x, y, z = item
+            else:
+                x, y = item
             x=x.type(torch.FloatTensor).to(device)
             y=y.to(device).unsqueeze(1)
             preds=model(x)
@@ -56,13 +61,16 @@ def check_accury(loader,model,device='cuda',res=False,res2=False,softmax=False):
 
             num_correct+=(preds==y).sum()
             num_pixels+=torch.numel(preds)
-            if (preds+y).sum()==0:
+            if (preds.cuda()+y.cuda()).sum()==0:
+                c_black+=1
+                # print('all black')
                 continue
             else:
                 dice_score+=(2*(preds*y).sum())/((preds+y).sum())
                 count+=1
 
     print(f'Got {num_correct}/{num_pixels} with accuracy {num_correct/num_pixels*100:.2f}')
+    print(f'clack count {c_black},total {len(loop)}')
     print('Dice_score:',dice_score/count)
     model.train()
     return (dice_score+1e-6)/(count+1e-6)
@@ -251,24 +259,30 @@ def save_predictions_as_imgs7(loader,model,folder='save_imgs/'):
         print('creating path {}'.format(folder))
     model.eval()
     c=0
+    c_black=0
     for idx,(xs,ys) in enumerate(loader):
         for i in range(xs.size(0)):
             x=xs[i].type(torch.FloatTensor).to('cuda').unsqueeze(0)
-            y= ys[i].unsqueeze(0)
+            y= ys[i].unsqueeze(0).cuda()
             with torch.no_grad():
                 out,edges=model(x,train=True)
                 out=(torch.sigmoid(out)>0.5).float()
+                if torch.sum(out.cuda()+y.cuda())==0:
+                    c_black=0
+                    c+=1
+                    continue
                 torchvision.utils.save_image(out, f'{folder}/{c}_0pred.png')
                 l=len(edges)
-                # for i in range(l):
-                #     preds=torch.sigmoid(edges[i])
-                #     preds=(preds>0.5).float()
-                #     torchvision.utils.save_image(preds, f'{folder}/{idx}_edge_{i}.png')
-                out = (torch.sigmoid(edges) > 0.5).float()
-                torchvision.utils.save_image(out, f'{folder}/{c}_edge.png')
+                for i in range(l):
+                    preds=torch.sigmoid(edges[i])
+                    preds=(preds>0.5).float()
+                    torchvision.utils.save_image(preds, f'{folder}/{c}_edge_{i}.png')
+                # out = (torch.sigmoid(edges) > 0.5).float()
+                # torchvision.utils.save_image(out, f'{folder}/{c}_edge.png')
 
                 torchvision.utils.save_image(y.unsqueeze(1),f'{folder}/{c}.png')
                 c+=1
+    print(f'clack count {c_black},total {len(c)}')
     model.train()
 
 
