@@ -20,12 +20,12 @@ def load_checkpoint(checkpoint,model):
     model.load_state_dict(checkpoint['state_dict'])
 
 def get_loaders(img_dir,mask_dir,edge_dir=None,edge_transform=None,batch_size=1,transform=None,pin_nemory=True,load_type='RGB'):
-    if load_type=='RGB':
-        train_ds =Data_load(img_dir, mask_dir, edge_dir=edge_dir, transform=transform,
-                                  edge_trans=edge_transform)
+    # if load_type=='RGB':
+    train_ds =Data_load(img_dir, mask_dir, edge_dir=edge_dir, transform=transform,
+                              edge_trans=edge_transform)
 
-    elif load_type=='L':
-        train_ds=Data_load_Gray(img_dir,mask_dir,edge_dir=edge_dir,transform=transform,edge_trans=edge_transform)
+    # elif load_type=='L':
+    #     train_ds=Data_load_Gray(img_dir,mask_dir,edge_dir=edge_dir,transform=transform,edge_trans=edge_transform)
 
 
     train_loader=DataLoader(train_ds,batch_size=batch_size,shuffle=True,pin_memory=pin_nemory)
