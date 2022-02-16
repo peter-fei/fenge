@@ -128,10 +128,8 @@ def main(args):
     loss_fn=MSSSIM()
     optimizer=optim.Adam(filter(lambda p:p.requires_grad,model.parameters()),lr=args.lr)
 
-    train_loader,val_loader = get_loaders(args.TRAIN_IMG_DIR,
+    train_loader = get_loaders(args.TRAIN_IMG_DIR,
                                           args.TRAIN_MASK_DIR,
-                                          args.VAL_IMG_DIR,
-                                          args.VAL_MASK_DIR,
                                           args.TRAIN_EDGE_DIR,
                                           edge_transform,
                                           args.batch_size,
@@ -156,7 +154,7 @@ def main(args):
         dice = 0
         c = 0
         for f in os.listdir(args.VAL_IMG_DIR):
-            val_loader2 = get_loaders(os.path.join(args.VAL_IMG_DIR,f), os.path.join(args.VAL_MASK_DIR,f),batch_size=BATCH_SIZE,transform=val_trainsform)
+            val_loader2 = get_loaders(os.path.join(args.VAL_IMG_DIR,f), os.path.join(args.VAL_MASK_DIR,f),batch_size=args.batch_size,transform=val_trainsform)
             c+=1
             dice+=check_accury2(val_loader2,model)
         dice/=c
