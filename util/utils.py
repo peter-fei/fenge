@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torchvision
 from util.dataLoad import Data_load,Data_load_Gray
@@ -18,35 +19,38 @@ def load_checkpoint(checkpoint,model):
     print('========>loading')
     model.load_state_dict(checkpoint['state_dict'])
 
-def get_loaders(train_dir,train_mask_dir,val_dir,val_mask_dir,train_edge_dir=None,train_edge_transform=None,batch_size=1,train_transform=None,val_transform=None,pin_nemory=True,load_type='RGB'):
+def get_loaders(img_dir,mask_dir,edge_dir=None,edge_transform=None,batch_size=1,transform=None,pin_nemory=True,load_type='RGB'):
     if load_type=='RGB':
-        train_ds =Data_load(train_dir, train_mask_dir, edge_dir=train_edge_dir, transform=train_transform,
-                                  edge_trans=train_edge_transform)
-        val_ds = Data_load(val_dir, val_mask_dir, transform=val_transform)
+        train_ds =Data_load(img_dir, mask_dir, edge_dir=edge_dir, transform=transform,
+                                  edge_trans=edge_transform)
+
     elif load_type=='L':
-        train_ds=Data_load_Gray(train_dir,train_mask_dir,edge_dir=train_edge_dir,transform=train_transform,edge_trans=train_edge_transform)
-        val_ds=Data_load_Gray(val_dir,val_mask_dir,transform=val_transform)
+        train_ds=Data_load_Gray(img_dir,mask_dir,edge_dir=edge_dir,transform=transform,edge_trans=edge_transform)
+
 
     train_loader=DataLoader(train_ds,batch_size=batch_size,shuffle=True,pin_memory=pin_nemory)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=True, pin_memory=pin_nemory)
-    return train_loader,val_loader
+
+    return train_loader
 
 def check_accury(loader,model,device='cuda',res=False,res2=False,softmax=False,hasedge=False):
     num_correct=0
     num_pixels=0
-    dice_score=0
+    dice_=total_dice=0
     model.eval()
     loop=tqdm(loader)
     count=0
     c_black=0
+    base_black=0
     with torch.no_grad():
         for item in loop:
             if hasedge:
                 x, y, z = item
             else:
                 x, y = item
+
             x=x.type(torch.FloatTensor).to(device)
             y=y.to(device).unsqueeze(1)
+            n=x.size(0)
             preds=model(x)
             if softmax:
                 preds=torch.softmax(preds,dim=1)
@@ -61,28 +65,90 @@ def check_accury(loader,model,device='cuda',res=False,res2=False,softmax=False,h
 
             num_correct+=(preds==y).sum()
             num_pixels+=torch.numel(preds)
+            if torch.sum(y)==0:
+                base_black+=n
             if (preds.cuda()+y.cuda()).sum()==0:
-                c_black+=1
-                # print('all black')
+                c_black+=n
                 continue
-            else:
-                dice_score+=(2*(preds*y).sum())/((preds+y).sum())
-                count+=1
 
+            # pred = preds.reshape(n, -1)
+            # label = y.reshape(n, -1)
+            pred = preds.reshape(n, -1)
+            label = y.reshape(n, -1)
+            dice_score = (2 * torch.sum(pred * label, dim=1) + 1e-8) / (
+                        torch.sum(pred, dim=1) + torch.sum(label, dim=1) + 1e-8)
+
+            total_dice+=dice_score.sum()
+            count+=n
+
+    dice=total_dice/count
     print(f'Got {num_correct}/{num_pixels} with accuracy {num_correct/num_pixels*100:.2f}')
-    print(f'clack count {c_black},total {len(loop)}')
-    print('Dice_score:',dice_score/count)
+    print(f'clack count {c_black},total {base_black}')
     model.train()
-    return (dice_score+1e-6)/(count+1e-6)
+    return dice
 
-def check_accury_noloop(loader,model,device='cuda',res=False,res2=False,softmax=False):
+def check_accury2(loader,model,device='cuda',res=False,res2=False,softmax=False,hasedge=False):
+    TP=TN=FP=0
+    base_black=num_correct=num_pixels=c_black=0
+    model.eval()
+
+
+    with torch.no_grad():
+        for item in loader:
+            if hasedge:
+                x, y, z = item
+            else:
+                x, y = item
+
+            x=x.type(torch.FloatTensor).to(device)
+            y=y.to(device).unsqueeze(1)
+            n=x.size(0)
+            preds=model(x)
+            if softmax:
+                preds=torch.softmax(preds,dim=1)
+                preds=torch.argmax(preds,dim=1)
+            if res:
+                preds=model.res
+            elif res2:
+                preds=preds[0]
+
+            preds=torch.sigmoid(preds)
+            preds=(preds>0.5).float()
+
+            num_correct+=(preds==y).sum()
+            num_pixels+=torch.numel(preds)
+            if torch.sum(y)==0:
+                base_black+=n
+            if (preds.cuda()+y.cuda()).sum()==0:
+                c_black+=n
+
+            t=torch.where(y==1)
+            f=torch.where(y==0)
+            TP+=preds[t].sum()
+            TN+=(preds[t]==0).sum()
+            FP+=(preds[f]==1).sum()
+
+
+
+    dice=2*TP/(TN+FP+2*TP)
+    # print(f'Got {num_correct}/{num_pixels} with accuracy {num_correct/num_pixels*100:.2f}')
+    # print(f'clack count {c_black},total {base_black}')
+    model.train()
+    return dice
+
+def check_accury_noloop(loader,model,device='cuda',res=False,res2=False,softmax=False,hasedge=False):
     num_correct=0
     num_pixels=0
     dice_score=0
     model.eval()
     count=0
+
     with torch.no_grad():
-        for x,y in loader:
+        for item in loader:
+            if hasedge:
+                x,y,z=item
+            else:
+                x,y=item
             x=x.type(torch.FloatTensor).to(device)
             y=y.to(device).unsqueeze(1)
             preds=model(x)
@@ -260,6 +326,7 @@ def save_predictions_as_imgs7(loader,model,folder='save_imgs/'):
     model.eval()
     c=0
     c_black=0
+    base_black=0
     for idx,(xs,ys) in enumerate(loader):
         for i in range(xs.size(0)):
             x=xs[i].type(torch.FloatTensor).to('cuda').unsqueeze(0)
@@ -267,8 +334,10 @@ def save_predictions_as_imgs7(loader,model,folder='save_imgs/'):
             with torch.no_grad():
                 out,edges=model(x,train=True)
                 out=(torch.sigmoid(out)>0.5).float()
+                if torch.sum(y)==0:
+                    base_black+=1
                 if torch.sum(out.cuda()+y.cuda())==0:
-                    c_black=0
+                    c_black+=1
                     c+=1
                     continue
                 torchvision.utils.save_image(out, f'{folder}/{c}_0pred.png')
@@ -282,7 +351,7 @@ def save_predictions_as_imgs7(loader,model,folder='save_imgs/'):
 
                 torchvision.utils.save_image(y.unsqueeze(1),f'{folder}/{c}.png')
                 c+=1
-    print(f'clack count {c_black},total {len(c)}')
+    print(f'clack count {c_black},total {base_black}')
     model.train()
 
 

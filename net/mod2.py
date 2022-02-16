@@ -1360,9 +1360,9 @@ class M5(Module):
         # self.edge1=Edge_Conv(cat_channel,1,4)
 
         self.up_conv5_4=Up_Conv_scal(cat_channel,cat_channel,stride=2)
-        self.up_conv5_3=Up_Conv_scal(cat_channel*5,cat_channel,stride=4)
-        self.up_conv5_2=Up_Conv_scal(cat_channel*5,cat_channel,stride=8)
-        self.up_conv5_1=Up_Conv_scal(cat_channel*5,cat_channel,stride=16)
+        self.up_conv5_3=Up_Conv_scal(cat_channel,cat_channel,stride=4)
+        self.up_conv5_2=Up_Conv_scal(cat_channel,cat_channel,stride=8)
+        self.up_conv5_1=Up_Conv_scal(cat_channel,cat_channel,stride=16)
 
         self.gate4=Gate(cat_channel,cat_channel)
         self.gate3=Gate(cat_channel,cat_channel)
@@ -1524,7 +1524,7 @@ class M5(Module):
         hd3 = torch.cat((h1_3, h2_3, h3_3,self.gate_hdconv4_3(gate4)), dim=1)
         hd3 = self.hdconv3(hd3)
         edge3 = self.edge3(hd3,(hd4,hd5_))
-        d5_3 = self.up_conv5_3(hd5)
+        d5_3 = self.up_conv5_3(hd5_)
         gate3 = self.gate3(d5_3, edge3)
 
         h1_2 = self.pool_conv1_2(x1)
@@ -1536,7 +1536,7 @@ class M5(Module):
         hd2 = torch.cat((h1_2, h2_2,self.gate_hdconv3_2(gate3)), dim=1)
         hd2 = self.hdconv2(hd2)
         edge2 = self.edge2(hd2,(hd3,hd4,hd5_))
-        d5_2 = self.up_conv5_2(hd5)
+        d5_2 = self.up_conv5_2(hd5_)
         gate2 = self.gate2(d5_2, edge2)
 
         h1_1 = self.pool_conv1_1(x1)
