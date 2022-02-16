@@ -174,7 +174,7 @@ def main(args):
             'state_dict': model.state_dict(),
             'max_dice': max_dice
         }
-        save_checkpoint(check_point,'save1.pth.tar')
+        save_checkpoint(check_point,'./save1.pth.tar')
     print('max',max_dice)
 
 

@@ -1579,7 +1579,7 @@ class M5(Module):
 class M6(Module):
     def __init__(self,inchannels,out_channels,filters=(64,128,256,512,1024)):
         super(M6, self).__init__()
-        cat_channel=filters[0]
+        cat_channel=filters[0]*4
         self.down_conv1=Down_Conv(inchannels,filters[0])
         self.down_conv2=Down_Conv(filters[0],filters[1])
         self.down_conv3=Down_Conv(filters[1],filters[2])
