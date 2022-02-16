@@ -48,13 +48,13 @@ if TRAIN==True:
 
 
 def train_fn(loader,model,optimizer,loss_fn=None,mutiedges=False):
-    # loop=tqdm(loader)
+    loop=tqdm(loader)
     loss_ssim=SSIM_Loss()
     loss_bce=nn.BCELoss()
     focal_loss = FocalLoss(logits=True)
     dice_loss = DiceLoss(logits=True)
     losses=0
-    for index,(data,targets,edge) in enumerate(loader):
+    for index,(data,targets,edge) in enumerate(loop):
 
         data=data.type(torch.FloatTensor).to(DEVICE)
         targets=targets.unsqueeze(1).to(DEVICE)
@@ -108,19 +108,22 @@ def main(args):
         transforms.Normalize(mean=0, std=1)
     ])
     if args.mod=='M1':
-        model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+        model=M1(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
         mutiedges = True
     elif args.mod=='M2':
         model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
         mutiedges=True
     elif args.mod=='M3':
-        model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+        model=M3(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
         mutiedges = False
     elif args.mod=='M4':
-        model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+        model=M4(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
         mutiedges = True
     elif args.mod=='M5':
-        model=M2(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+        model=M5(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
+        mutiedges = True
+    elif args.mod=='M6':
+        model=M6(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
         mutiedges = True
     loss_fn=MSSSIM()
     optimizer=optim.Adam(filter(lambda p:p.requires_grad,model.parameters()),lr=args.lr)
@@ -133,8 +136,12 @@ def main(args):
                                           edge_transform,
                                           args.batch_size,
                                           train_trainsform,
-                                          val_trainsform,
                                           )
+    # val_loader=get_loaders(args.VAL_IMG_DIR,
+    #                        args.VAL_MASK_DIR,
+    #                        batch_size=args.batch_size,
+    #                        transform=val_trainsform
+    #                        )
     max_dice = -1
     if args.load:
         checkpoint=torch.load(args.checkpoint)
@@ -145,8 +152,15 @@ def main(args):
         if args.train:
             train_fn(train_loader,model,optimizer,loss_fn,mutiedges)
 
-        # _=check_accury2(train_loader,model)
-        dice=check_accury_noloop(val_loader,model)
+        _=check_accury_noloop(train_loader,model,hasedge=True)
+        dice = 0
+        c = 0
+        for f in os.listdir(args.VAL_IMG_DIR):
+            val_loader2 = get_loaders(os.path.join(args.VAL_IMG_DIR,f), os.path.join(args.VAL_MASK_DIR,f),batch_size=BATCH_SIZE,transform=val_trainsform)
+            c+=1
+            dice+=check_accury2(val_loader2,model)
+        dice/=c
+        # dice=check_accury_noloop(val_loader,model)
         if dice>max_dice:
             max_dice=dice
             check_point = {
@@ -158,6 +172,11 @@ def main(args):
                 save_checkpoint(check_point, filename=os.path.join(args.savepath,args.checkpoint))
                 # save_predictions_as_imgs7(val_loader,model,args.savepath)
                 # save_predictions_as_imgs7(val_loader, model, args.savepath)
+        check_point = {
+            'state_dict': model.state_dict(),
+            'max_dice': max_dice
+        }
+        save_checkpoint(check_point,'save1.pth.tar')
     print('max',max_dice)
 
 
@@ -195,6 +214,6 @@ if __name__=='__main__':
     args=parse.parse_args()
     # args.load=True
     args.res2=True
-    print(args.res2)
+    print(args.mod,args.f1,args.f2,args.f3,args.f4,args.f5)
     main(args)
 
