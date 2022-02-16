@@ -150,7 +150,7 @@ def main(args):
         if args.train:
             train_fn(train_loader,model,optimizer,loss_fn,mutiedges)
 
-        _=check_accury_noloop(train_loader,model,hasedge=True)
+        _=check_accury(train_loader,model,hasedge=True)
         dice = 0
         c = 0
         for f in os.listdir(args.VAL_IMG_DIR):
@@ -158,6 +158,8 @@ def main(args):
             c+=1
             dice+=check_accury2(val_loader2,model)
         dice/=c
+        print('train dice ',_)
+        print('test dice',dice)
         # dice=check_accury_noloop(val_loader,model)
         if dice>max_dice:
             max_dice=dice
