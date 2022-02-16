@@ -124,7 +124,7 @@ def main(args):
         mutiedges = True
     elif args.mod=='M6':
         model=M6(3,1,(args.f1,args.f2,args.f3,args.f4,args.f5)).cuda()
-        mutiedges = True
+        mutiedges = False
     loss_fn=MSSSIM()
     optimizer=optim.Adam(filter(lambda p:p.requires_grad,model.parameters()),lr=args.lr)
 
